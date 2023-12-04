@@ -13,16 +13,17 @@ class Gap:
     Per = math.pi*(d1 + d2)
     d_h = 4*F/Per
     p0 = 1013e2
-    t0 = 0
+    t0 = 25
     t1 = 90
     sigma = 5.67e-8
     e1 = 0.8
     e2 = 0.6
     epr = 1 / (1/e1 + d1/d2*(1/e2 - 1))
-    tavg = 1
+    tavg = t0+1
     rho_0 = PropsSI('D', 'T', t0 + 273.15, 'P', p0, 'air')
     rho_avg = PropsSI('D', 'T', tavg+273.15, 'P', p0, 'air')
-    nu = PropsSI('VISCOSITY', 'T', tavg+273.15, 'P', p0, 'air')
+    mu = PropsSI('VISCOSITY', 'T', tavg+273.15, 'P', p0, 'air')
+    nu = mu/rho_avg
 
 def calc_dp_h(tavg):
     #Gap.rho_avg = PropsSI('D', 'T', tavg+273.15, 'P', Gap.p0, 'air')
@@ -43,12 +44,12 @@ def calc_G(tavg):
 
     return G
 
-def calc_Q(tavg=60):
+def calc_Q(tavg):
     cp = PropsSI('CPMASS', 'T', tavg+273.25, 'P', Gap.p0, 'air')
     return 2*calc_G(tavg)*cp*(tavg - Gap.t0)
 
 def calc_alpha(Re, tavg):
-    lam = PropsSI('L', 'T', tavg+273.15, 'P', Gap.p0, 'air')
+    lam = PropsSI('CONDUCTIVITY', 'T', tavg+273.15, 'P', Gap.p0, 'air')
     Pr = PropsSI('Prandtl', 'T', tavg+273.15, 'P', Gap.p0, 'air')
     if Re <= 40:
         C, n, m = 0.76, 0.4, 0.37
@@ -62,23 +63,24 @@ def calc_alpha(Re, tavg):
     return Nu * lam / Gap.d_h
 
 def calc_Q1(t1, t2, tavg):
-    G = calc_G(tavg)
+    #G = calc_G(tavg)
     #rho = PropsSI('D', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    u = G / Gap.rho_avg / Gap.F
-    Re = u * Gap.d_h / nu
-    alpha = calc_alpha(Re, tavg)
+    #nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
+    #u = G / Gap.rho_avg / Gap.F
+    #Re = u * Gap.d_h / nu
+    alpha = calc_alpha(Gap.Re, tavg)
 
     return alpha*math.pi*Gap.d1*Gap.h*(t1 - tavg) + Gap.epr*Gap.sigma*math.pi*Gap.h*Gap.d1*((t1+273.15)**4 - (t2+273.15)**4)
 
 
 def calc_t2(t1, tavg):
-    G = calc_G(tavg)
-    rho = PropsSI('D', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    u = G / rho / Gap.F
-    Re = u * Gap.d_h / nu
-    alpha = calc_alpha(Re, tavg)
+    #G = calc_G(tavg)
+    #rho = PropsSI('D', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
+    #nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
+    #u = G / rho / Gap.F
+    #Re = u * Gap.d_h / nu
+    alpha = calc_alpha(Gap.Re, tavg)
+    Gap.alpha = alpha
     t2_old = tavg
     t2 = Gap.epr*Gap.sigma*Gap.d1/Gap.d2/alpha*((t1+273.15)**4 - (t2_old+273.15)**4) + tavg
     while abs(t2-t2_old) > 0.001:
@@ -87,18 +89,26 @@ def calc_t2(t1, tavg):
 
     return t2
 
-
-tavg = Gap.t0+1
-t2 = calc_t2(Gap.t1, tavg)
-Q = calc_Q(tavg)
-Q1 = calc_Q1(Gap.t1, t2, tavg)
-
-while abs(Q - Q1) > 0.001:
-    tavg += 0.1
-    t2 = calc_t2(Gap.t1, tavg)
+def run():
+    tavg = Gap.t0
     Q = calc_Q(tavg)
+    t2 = calc_t2(Gap.t1, tavg)
     Q1 = calc_Q1(Gap.t1, t2, tavg)
-    print(t2, Q, Q1)
+
+    while abs(Q - Q1) > 0.01:
+        tavg += 0.001*(Q1-Q)
+        Gap.tavg = tavg
+        t2 = calc_t2(Gap.t1, tavg)
+        Q = calc_Q(tavg)
+        Q1 = calc_Q1(Gap.t1, t2, tavg)
+
+    return Q, t2, tavg
+
+t1 = [t for t in range(-20, 100)]
+for t in t1:
+    Gap.t1 = t
+    Q, t2, tavg = run()
+    print('t1 =', '%.1f' % Gap.t1, '\tt2 =', '%.1f' % t2, '\ttavg =', '%.1f' % tavg, '\tQ =', '%.1f' % Q, '\talpha =', '%.1f' % Gap.alpha)
 
 #tavg = 10
 #print(calc_G(tavg))
