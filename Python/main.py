@@ -13,7 +13,7 @@ class Gap:
     Per = math.pi*(d1 + d2)
     d_h = 4*F/Per
     p0 = 1013e2
-    t0 = 25
+    t0 = 0
     t1 = 90
     sigma = 5.67e-8
     e1 = 0.8
@@ -39,9 +39,10 @@ def calc_dp_tr(tavg, G):
 
 def calc_G(tavg):
     G = 0.001
-    while abs(calc_dp_h(tavg) - calc_dp_tr(tavg, G)) > 0.001:
+    while abs(calc_dp_h(tavg) - calc_dp_tr(tavg, G)) > 0.0001:
         G += 0.0001
 
+    Gap.G = G
     return G
 
 def calc_Q(tavg):
@@ -104,11 +105,11 @@ def run():
 
     return Q, t2, tavg
 
-t1 = [t for t in range(-20, 100)]
+t1 = [t for t in range(-20, 200)]
 for t in t1:
     Gap.t1 = t
     Q, t2, tavg = run()
-    print('t1 =', '%.1f' % Gap.t1, '\tt2 =', '%.1f' % t2, '\ttavg =', '%.1f' % tavg, '\tQ =', '%.1f' % Q, '\talpha =', '%.1f' % Gap.alpha)
+    print('t1 =', '%.1f' % Gap.t1, '\tt2 =', '%.1f' % t2, '\ttavg =', '%.1f' % tavg, '\tQ =', '%.1f' % Q, '\talpha =', '%.1f' % Gap.alpha, 'G =', '%.5f' % Gap.G)
 
 #tavg = 10
 #print(calc_G(tavg))
