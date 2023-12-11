@@ -1,5 +1,7 @@
 import math
 from CoolProp.CoolProp import PropsSI
+import numpy as np
+from matplotlib import pyplot as plt
 
 class Const:
     g = 9.81
@@ -8,6 +10,8 @@ class Const:
     T00 = 273.15
     M = 29e-3
     p0 = 1013e2
+    t1_max = 90
+    t2_max = 60
 
     @staticmethod
     def tosi(param):
@@ -32,10 +36,12 @@ class Gap:
         self.epr = 1 / (1/self.e1 + self.d1/self.d2*(1/self.e2 - 1))
 
         self.tavg = self.t0 + 1#0.5*(self.t0 + self.t1)
+        self.tout = 2 * self.tavg - self.t0
         self.G = None
         self.Q = None
         self.alpha = None
         self.t2 = None
+
 
 
     def calc_G(self, nu, tavg):
@@ -82,7 +88,7 @@ class Gap:
             alpha = self.calc_alpha(G*self.d_h/mu/self.F, tavg)
             t2 = self.calc_t2(alpha, tavg)
             Q2 = self.calc_Q_T(alpha, t2, tavg)
-            if abs(Q1 - Q2) < 0.01:
+            if abs(Q1 - Q2) < 0.001:
                 break
             else:
                 tavg += 0.001*(Q2-Q1)
@@ -92,14 +98,51 @@ class Gap:
         self.alpha = alpha
         self.t2 = t2
         self.tavg = tavg
+        self.tout = 2*tavg - self.t0
 
 
-gap = Gap(0, 90)
-t1 = [t for t in range(90, 200)]
-for t in t1:
-    gap.t1 = t
-    gap.run()
-    print('t1 =', '%.1f' % gap.t1, '\tt2 =', '%.1f' % gap.t2, '\ttavg =', '%.1f' % gap.tavg, '\tQ =', '%.1f' % gap.Q, '\talpha =', '%.1f' % gap.alpha, 'G =', '%.5f' % gap.G)
+#gap = Gap(0, 90)
+tmin = -20
+tmax = 240
+temps = np.arange(tmin+1, tmax+1, 1)
+cases = [Gap(-20, t1) for t1 in temps]
+for case in cases:
+    case.run()
+    print("t1 =", case.t1, "calculated")
+
+t1 = [x.t1 for x in cases]
+t2 = [x.t2 for x in cases]
+tavg = [x.tavg for x in cases]
+tout = [x.tout for x in cases]
+Q = [x.Q for x in cases]
+
+fig, axs = plt.subplots(nrows=2, ncols=1)
+axs[0].plot(Q, t1, label='Бочка', color='black')
+axs[0].plot(Q, [Const.t1_max for x in Q], "--", label='Температура вспенивания', color='black')
+axs[0].plot(Q, t2, label='Бетон', color='brown')
+axs[0].plot(Q, [Const.t2_max for x in Q], "--", label='Температура охрупчивания', color='brown')
+axs[1].plot(Q, tavg, color='blue', label='Средняя температура воздуха')
+axs[1].plot(Q, tout, color='red', label='Температура воздуха на выходе')
+
+fig.supxlabel("Тепловая мощность, Вт")
+fig.supylabel("Температура, град. Цельс")
+axs[0].set_xlim(0, 9000)
+axs[1].set_xlim(0, 9000)
+axs[0].set_ylim(tmin, tmax)
+axs[1].set_ylim(tmin, 5)
+axs[0].grid()
+axs[1].grid()
+axs[0].legend()
+axs[1].legend()
+
+
+plt.show()
+
+#t1 = [t for t in range(90, 200)]
+#for t in t1:
+#    gap.t1 = t
+#    gap.run()
+#    print('t1 =', '%.1f' % gap.t1, '\tt2 =', '%.1f' % gap.t2, '\ttavg =', '%.1f' % gap.tavg, '\tQ =', '%.1f' % gap.Q, '\talpha =', '%.1f' % gap.alpha, 'G =', '%.5f' % gap.G)
 
 #tavg = 10
 #print(calc_G(tavg))
