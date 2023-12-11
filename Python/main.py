@@ -74,7 +74,7 @@ class Gap:
         t2_old = tavg
         while True:
             t2 = self.epr*Const.sigma * self.d1 / self.d2 / alpha * (Const.tosi(self.t1)** 4 - Const.tosi(t2_old)** 4) + tavg
-            if abs(t2 - t2_old) < 0.01:
+            if abs(t2 - t2_old) < 0.001:
                 return t2
             t2_old = t2
 
@@ -104,7 +104,7 @@ class Gap:
 #gap = Gap(0, 90)
 tmin = -20
 tmax = 240
-temps = np.arange(tmin+1, tmax+1, 1)
+temps = np.arange(tmin+1, tmax+1, 0.5)
 cases = [Gap(-20, t1) for t1 in temps]
 for case in cases:
     case.run()
@@ -115,6 +115,17 @@ t2 = [x.t2 for x in cases]
 tavg = [x.tavg for x in cases]
 tout = [x.tout for x in cases]
 Q = [x.Q for x in cases]
+
+inter_barrel = []
+inter_concr = []
+inter_barrel.insert(0, min(t1, key=lambda x: abs(x-Const.t1_max)))
+inter_barrel.insert(0, Q[t1.index(inter_barrel[0])])
+inter_concr.insert(0, min(t2, key=lambda x: abs(x-Const.t2_max)))
+inter_concr.insert(0, Q[t2.index(inter_concr[0])])
+
+print(inter_barrel[0] ,inter_barrel[1])
+print(inter_concr[0], inter_concr[1])
+
 
 fig, axs = plt.subplots(nrows=2, ncols=1)
 axs[0].plot(Q, t1, label='Бочка', color='black')
