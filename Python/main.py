@@ -35,12 +35,17 @@ class Gap:
         self.e2 = 0.6
         self.epr = 1 / (1/self.e1 + self.d1/self.d2*(1/self.e2 - 1))
 
+        self.V = 216.5e-3#self.h*np.pi*self.d1**2/4
+
+
         self.tavg = self.t0 + 1#0.5*(self.t0 + self.t1)
         self.tout = 2 * self.tavg - self.t0
         self.G = None
         self.Q = None
         self.alpha = None
         self.t2 = None
+
+        self.q = None
 
 
 
@@ -99,6 +104,7 @@ class Gap:
         self.t2 = t2
         self.tavg = tavg
         self.tout = 2*tavg - self.t0
+        self.q = self.Q / self.V
 
 
 #gap = Gap(0, 90)
@@ -114,7 +120,7 @@ t1 = [x.t1 for x in cases]
 t2 = [x.t2 for x in cases]
 tavg = [x.tavg for x in cases]
 tout = [x.tout for x in cases]
-Q = [x.Q for x in cases]
+Q = [x.Q/1000 for x in cases]
 
 inter_barrel = []
 inter_concr = []
@@ -123,8 +129,18 @@ inter_barrel.insert(0, Q[t1.index(inter_barrel[0])])
 inter_concr.insert(0, min(t2, key=lambda x: abs(x-Const.t2_max)))
 inter_concr.insert(0, Q[t2.index(inter_concr[0])])
 
-print(inter_barrel[0] ,inter_barrel[1])
-print(inter_concr[0], inter_concr[1])
+#print(inter_barrel[0] ,inter_barrel[1])
+#print(inter_concr[0], inter_concr[1])
+G = [x.G for x in cases]
+alpha = [x.alpha for x in cases]
+q = [x.q for x in cases]
+i = t1.index(inter_barrel[1])
+print("Q =", Q[i], "q =", q[i], "t1 =", t1[i], "t2 =", t2[i], "tavg =", tavg[i], "tout =", tout[i], "G =", G[i], "alpha =", alpha[i])
+i = t2.index(inter_concr[1])
+print("Q =", Q[i], "q =", q[i], "t1 =", t1[i], "t2 =", t2[i], "tavg =", tavg[i], "tout =", tout[i], "G =", G[i], "alpha =", alpha[i])
+
+
+
 
 
 fig, axs = plt.subplots(nrows=2, ncols=1)
@@ -135,11 +151,12 @@ axs[0].plot(Q, [Const.t2_max for x in Q], "--", label='Температура о
 axs[1].plot(Q, tavg, color='blue', label='Средняя температура воздуха')
 axs[1].plot(Q, tout, color='red', label='Температура воздуха на выходе')
 
-fig.supxlabel("Тепловая мощность, Вт")
+fig.supxlabel("Тепловая мощность, кВт")
 fig.supylabel("Температура, град. Цельс")
-axs[0].set_xlim(0, 9000)
-axs[1].set_xlim(0, 9000)
-axs[0].set_ylim(tmin, tmax)
+axs[0].set_xlim(0, 9)
+axs[1].set_xlim(0, 9)
+axs[0].set_ylim(tmin, 200)
+axs[0].yaxis.set_ticks(np.arange(-20, 220+40, 40))
 axs[1].set_ylim(tmin, 5)
 axs[0].grid()
 axs[1].grid()
@@ -147,7 +164,26 @@ axs[0].legend()
 axs[1].legend()
 
 
+plt.figure(2)
+alpha = [x.alpha for x in cases]
+plt.plot(Q, alpha)
+plt.xlabel("Тепловая мощность, кВт")
+plt.ylabel("Коэффициент теплоотдачи, Вт/$м^2$/К")
+plt.xlim(0, 9)
+plt.ylim(0, 18)
+plt.grid()
+
+
+plt.figure(3)
+G = [x.G for x in cases]
+plt.plot(Q, G)
+plt.xlabel("Тепловая мощность, кВт")
+plt.ylabel("Массовый расход, кг/$м^3$")
+plt.xlim(0, 9)
+plt.ylim(0, 0.5)
+plt.grid()
 plt.show()
+
 
 #t1 = [t for t in range(90, 200)]
 #for t in t1:
