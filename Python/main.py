@@ -1,117 +1,109 @@
 import math
-
 from CoolProp.CoolProp import PropsSI
 
-class Gap:
-    h = 878e-3
-    d1 = 585e-3
-    r1 = d1/2
-    gap = 70e-3
-    r2 = r1 + gap
-    d2 = 2 * r2
-    F = math.pi/4*(d2**2 - d1**2)
-    Per = math.pi*(d1 + d2)
-    d_h = 4*F/Per
-    p0 = 1013e2
-    t0 = 0
-    t1 = 90
+class Const:
+    g = 9.81
+    R = 8.31
     sigma = 5.67e-8
-    e1 = 0.8
-    e2 = 0.6
-    epr = 1 / (1/e1 + d1/d2*(1/e2 - 1))
-    tavg = t0+1
-    rho_0 = PropsSI('D', 'T', t0 + 273.15, 'P', p0, 'air')
-    rho_avg = PropsSI('D', 'T', tavg+273.15, 'P', p0, 'air')
-    mu = PropsSI('VISCOSITY', 'T', tavg+273.15, 'P', p0, 'air')
-    nu = mu/rho_avg
+    T00 = 273.15
+    M = 29e-3
+    p0 = 1013e2
 
-def calc_dp_h(tavg):
-    #Gap.rho_avg = PropsSI('D', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    return 9.81 * Gap.h * (Gap.rho_0 - Gap.rho_avg)
-
-def calc_dp_tr(tavg, G):
-    #rho_avg = PropsSI('D', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    #nu = PropsSI('VISCOSITY', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    u = G / Gap.rho_avg / Gap.F
-    Gap.Re = u * Gap.d_h / Gap.nu
-    ksi = 0.316/Gap.Re**0.25
-    return ksi * Gap.h/Gap.d_h * G**2/2/Gap.rho_avg/Gap.F**2
-
-def calc_G(tavg):
-    G = 0.001
-    while abs(calc_dp_h(tavg) - calc_dp_tr(tavg, G)) > 0.0001:
-        G += 0.0001
-
-    Gap.G = G
-    return G
-
-def calc_Q(tavg):
-    cp = PropsSI('CPMASS', 'T', tavg+273.25, 'P', Gap.p0, 'air')
-    return 2*calc_G(tavg)*cp*(tavg - Gap.t0)
-
-def calc_alpha(Re, tavg):
-    lam = PropsSI('CONDUCTIVITY', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    Pr = PropsSI('Prandtl', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    if Re <= 40:
-        C, n, m = 0.76, 0.4, 0.37
-    elif Re > 40 and Re <= 1000:
-        C, n, m = 0.52, 0.5, 0.37
-    elif Re > 1000 and Re <= 2e5:
-        C, n, m = 0.26, 0.6, 0.37
-    else:
-        C, n, m = 0.023, 0.8, 0.4
-    Nu = C * Re**n * Pr**m
-    return Nu * lam / Gap.d_h
-
-def calc_Q1(t1, t2, tavg):
-    #G = calc_G(tavg)
-    #rho = PropsSI('D', 'T', tavg+273.15, 'P', Gap.p0, 'air')
-    #nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    #u = G / Gap.rho_avg / Gap.F
-    #Re = u * Gap.d_h / nu
-    alpha = calc_alpha(Gap.Re, tavg)
-
-    return alpha*math.pi*Gap.d1*Gap.h*(t1 - tavg) + Gap.epr*Gap.sigma*math.pi*Gap.h*Gap.d1*((t1+273.15)**4 - (t2+273.15)**4)
+    @staticmethod
+    def tosi(param):
+            return param+Const.T00
 
 
-def calc_t2(t1, tavg):
-    #G = calc_G(tavg)
-    #rho = PropsSI('D', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    #nu = PropsSI('VISCOSITY', 'T', tavg + 273.15, 'P', Gap.p0, 'air')
-    #u = G / rho / Gap.F
-    #Re = u * Gap.d_h / nu
-    alpha = calc_alpha(Gap.Re, tavg)
-    Gap.alpha = alpha
-    t2_old = tavg
-    t2 = Gap.epr*Gap.sigma*Gap.d1/Gap.d2/alpha*((t1+273.15)**4 - (t2_old+273.15)**4) + tavg
-    while abs(t2-t2_old) > 0.001:
-        t2_old = t2
-        t2 = Gap.epr*Gap.sigma*Gap.d1/Gap.d2/alpha*((t1+273.15)**4 - (t2+273.15)**4) + tavg
+class Gap:
+    def __init__(self, t0, t1):
+        self.h = 878e-3
+        self.d1 = 585e-3
+        self.r1 = self.d1/2
+        self.gap = 70e-3
+        self.r2 = self.r1 + self.gap
+        self.d2 = 2 * self.r2
+        self.F = math.pi/4*(self.d2**2 - self.d1**2)
+        self.Per = math.pi*(self.d1 + self.d2)
+        self.d_h = 4*self.F/self.Per
+        self.t0 = t0
+        self.t1 = t1
+        self.e1 = 0.8
+        self.e2 = 0.6
+        self.epr = 1 / (1/self.e1 + self.d1/self.d2*(1/self.e2 - 1))
 
-    return t2
+        self.tavg = self.t0 + 1#0.5*(self.t0 + self.t1)
+        self.G = None
+        self.Q = None
+        self.alpha = None
+        self.t2 = None
 
-def run():
-    tavg = Gap.t0
-    Q = calc_Q(tavg)
-    t2 = calc_t2(Gap.t1, tavg)
-    Q1 = calc_Q1(Gap.t1, t2, tavg)
 
-    while abs(Q - Q1) > 0.01:
-        tavg += 0.001*(Q1-Q)
-        Gap.tavg = tavg
-        t2 = calc_t2(Gap.t1, tavg)
-        Q = calc_Q(tavg)
-        Q1 = calc_Q1(Gap.t1, t2, tavg)
+    def calc_G(self, nu, tavg):
+        return (2*Const.g*self.d_h**(5/4)/0.316/nu**0.25 * (tavg-self.t0)/Const.tosi(self.t0))**(4/7) * Const.p0/Const.R/Const.tosi(tavg) * Const.M*self.F
 
-    return Q, t2, tavg
+    #@staticmethod
+    def calc_Q_G(self, G, tavg):
+        cp = PropsSI('CPMASS', 'T', Const.tosi(tavg), 'P', Const.p0, 'air')
+        return 2*G*cp*(tavg-self.t0)
 
-t1 = [t for t in range(-20, 200)]
+    def calc_Q_T(self, alpha, t2, tavg):
+        return math.pi*self.h*self.d1*(alpha*(self.t1-tavg)+self.epr*Const.sigma*(Const.tosi(self.t1)**4 - Const.tosi(t2)**4))
+
+    def calc_alpha(self, Re, tavg):
+        lam = PropsSI('CONDUCTIVITY', 'T', Const.tosi(tavg), 'P', Const.p0, 'air')
+        Pr = PropsSI('Prandtl', 'T', Const.tosi(tavg), 'P', Const.p0, 'air')
+        if Re <= 40:
+            C, n, m = 0.76, 0.4, 0.37
+        elif 40 < Re <= 1000:
+            C, n, m = 0.52, 0.5, 0.37
+        elif 1000 < Re <= 2e5:
+            C, n, m = 0.26, 0.6, 0.37
+        else:
+            C, n, m = 0.023, 0.8, 0.4
+        Nu = C * Re**n * Pr**m
+
+        return Nu * lam / self.d_h
+
+    def calc_t2(self, alpha, tavg):
+        t2_old = tavg
+        while True:
+            t2 = self.epr*Const.sigma * self.d1 / self.d2 / alpha * (Const.tosi(self.t1)** 4 - Const.tosi(t2_old)** 4) + tavg
+            if abs(t2 - t2_old) < 0.01:
+                return t2
+            t2_old = t2
+
+    def run(self):
+        tavg = self.tavg
+        while True:
+            mu, rho = map(lambda x: PropsSI(x, 'T', Const.tosi(tavg), 'P', Const.p0, 'air'), ('VISCOSITY', 'D'))
+            nu = mu/rho
+            G = self.calc_G(nu, tavg)
+            Q1 = self.calc_Q_G(G, tavg)
+            alpha = self.calc_alpha(G*self.d_h/mu/self.F, tavg)
+            t2 = self.calc_t2(alpha, tavg)
+            Q2 = self.calc_Q_T(alpha, t2, tavg)
+            if abs(Q1 - Q2) < 0.01:
+                break
+            else:
+                tavg += 0.001*(Q2-Q1)
+
+        self.G = G
+        self.Q = 0.5*(Q1+Q2)
+        self.alpha = alpha
+        self.t2 = t2
+        self.tavg = tavg
+
+
+gap = Gap(0, 90)
+t1 = [t for t in range(90, 200)]
 for t in t1:
-    Gap.t1 = t
-    Q, t2, tavg = run()
-    print('t1 =', '%.1f' % Gap.t1, '\tt2 =', '%.1f' % t2, '\ttavg =', '%.1f' % tavg, '\tQ =', '%.1f' % Q, '\talpha =', '%.1f' % Gap.alpha, 'G =', '%.5f' % Gap.G)
+    gap.t1 = t
+    gap.run()
+    print('t1 =', '%.1f' % gap.t1, '\tt2 =', '%.1f' % gap.t2, '\ttavg =', '%.1f' % gap.tavg, '\tQ =', '%.1f' % gap.Q, '\talpha =', '%.1f' % gap.alpha, 'G =', '%.5f' % gap.G)
 
 #tavg = 10
 #print(calc_G(tavg))
 #print(calc_t2(90, 10))
+
+
 
